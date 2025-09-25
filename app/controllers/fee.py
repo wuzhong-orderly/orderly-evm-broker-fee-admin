@@ -209,7 +209,16 @@ def update_user_special_rate(account_id, maker_fee, taker_fee):
 
 
 def update_grace_period_user_rates(user_fee, tier_count):
-    redis_client = get_redis_client()
+    # Check if Redis is enabled
+    if not config.get("redis", {}).get("enabled", True):
+        logger.info("Redis functionality disabled - skipping grace period updates")
+        return [], 0, 0
+        
+    try:
+        redis_client = get_redis_client()
+    except Exception as e:
+        logger.error(f"Failed to connect to Redis: {e} - skipping grace period updates")
+        return [], 0, 0
 
     grace_period_tier_all_account_ids = []
     total_ok_count = 0
@@ -333,20 +342,30 @@ def update_user_rates():
         if _account_id not in account_id2address:
             account_id2address[_account_id] = _data["address"]
 
-    special_rate_whitelists = config["rate"]["special_rate_whitelists"]
+    special_rate_whitelists = config["rate"].get("special_rate_whitelists", []) or []
     tier_count = {_tier["tier"]: 0 for _tier in config["rate"]["fee_tier"]}
 
     grace_period_tier_all_account_ids, total_ok_count, total_fail_count = update_grace_period_user_rates(
         user_fee, tier_count
     )
 
-    redis_client = get_redis_client()
-
-    hosting_campaign_fixed_tier_network = redis_client.get(REDIS_KEY_HOSTING_CAMPAIGN_FIXED_TIER_NETWORK)
-    hosting_campaign_fixed_tier = redis_client.get(REDIS_KEY_HOSTING_CAMPAIGN_FIXED_TIER)
-
-    hosting_campaign_fixed_tier_start_ts = redis_client.get(REDIS_KEY_HOSTING_CAMPAIGN_FIXED_TIER_START_TS)
-    hosting_campaign_fixed_tier_end_ts = redis_client.get(REDIS_KEY_HOSTING_CAMPAIGN_FIXED_TIER_END_TS) or sys.maxsize
+    # Handle Redis connection for hosting campaign features
+    hosting_campaign_fixed_tier_network = None
+    hosting_campaign_fixed_tier = None
+    hosting_campaign_fixed_tier_start_ts = None
+    hosting_campaign_fixed_tier_end_ts = sys.maxsize
+    
+    if config.get("redis", {}).get("enabled", True):
+        try:
+            redis_client = get_redis_client()
+            hosting_campaign_fixed_tier_network = redis_client.get(REDIS_KEY_HOSTING_CAMPAIGN_FIXED_TIER_NETWORK)
+            hosting_campaign_fixed_tier = redis_client.get(REDIS_KEY_HOSTING_CAMPAIGN_FIXED_TIER)
+            hosting_campaign_fixed_tier_start_ts = redis_client.get(REDIS_KEY_HOSTING_CAMPAIGN_FIXED_TIER_START_TS)
+            hosting_campaign_fixed_tier_end_ts = redis_client.get(REDIS_KEY_HOSTING_CAMPAIGN_FIXED_TIER_END_TS) or sys.maxsize
+        except Exception as e:
+            logger.warning(f"Failed to connect to Redis for hosting campaign features: {e}")
+    else:
+        logger.info("Redis functionality disabled - skipping hosting campaign features")
 
     tier_fee_rates = {
         _tier["tier"]: {
@@ -366,12 +385,14 @@ def update_user_rates():
         staking_bal = account_id2data.get(_account_id, {}).get("staking_bal", 0)
 
         _user_fee = get_user_fee_rates(perp_volume, staking_bal)
-        if int(hosting_campaign_fixed_tier_start_ts) <= now < int(hosting_campaign_fixed_tier_end_ts):
+        if (hosting_campaign_fixed_tier_start_ts is not None and 
+            hosting_campaign_fixed_tier_end_ts is not None and
+            int(hosting_campaign_fixed_tier_start_ts) <= now < int(hosting_campaign_fixed_tier_end_ts)):
             if (
                 hosting_campaign_fixed_tier_network == "all"
                 or (hosting_campaign_fixed_tier_network == "evm" and is_evm_address(_address))
                 or (hosting_campaign_fixed_tier_network == "svm" and is_svm_address(_address))
-            ) and int(_user_fee["tier"]) < int(hosting_campaign_fixed_tier):
+            ) and hosting_campaign_fixed_tier is not None and int(_user_fee["tier"]) < int(hosting_campaign_fixed_tier):
                 _user_fee = tier_fee_rates[hosting_campaign_fixed_tier]
 
         if not _user_fee:
@@ -504,5 +525,8 @@ def update_user_rate():
     # update_unified_user_rates()
 
     # NOTE: tier 1 ~ 7 logic, online since 03 Sep 2025
-    init_staking_bals()
+    if config.get("arbitrum", {}).get("enable_staking", False):
+        init_staking_bals()
+    else:
+        logger.info("Staking functionality disabled in configuration")
     update_user_rates()

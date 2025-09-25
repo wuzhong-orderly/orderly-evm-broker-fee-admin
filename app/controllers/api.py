@@ -90,9 +90,10 @@ def get_user_fee_rates(volume, staking_bal):
                     "tier": _tier["tier"],
                 }
 
-        if _tier["staking_bal_min"] is not None:
+        # Check for staking balance tiers only if they exist in configuration
+        if _tier.get("staking_bal_min") is not None:
             if _tier["staking_bal_min"] <= staking_bal and (
-                _tier["staking_bal_max"] is None or staking_bal < _tier["staking_bal_max"]
+                _tier.get("staking_bal_max") is None or staking_bal < _tier["staking_bal_max"]
             ):
                 if tier_found < int(_tier["tier"]):
                     tier_found = int(_tier["tier"])

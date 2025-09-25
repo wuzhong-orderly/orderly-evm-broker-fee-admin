@@ -19,6 +19,8 @@ G_REDIS_CLIENT = None
 
 def get_redis_client():
     global G_REDIS_CLIENT
+    if not config.get("redis", {}).get("enabled", True):
+        raise ConnectionError("Redis is disabled in configuration")
     if G_REDIS_CLIENT is None:
         pool = redis.ConnectionPool(
             host=config["redis"]["host"],
@@ -73,14 +75,31 @@ def clean_none_value(input_dict):
 def send_message(alert_message):
     telegram_alert_to = "\n@Merlin_WG @Chiwei_WG"
     slack_alert_to = "\n<@merlin> <@chiwei.huang>"
-    Bot(config["common"]["telegram_bot_token"]).send_message(
-        config["common"]["telegram_chat_id"],
-        alert_message + telegram_alert_to,
-        reply_to_message_id=config["common"]["telegram_message_id"]
-    )
-    slack.WebClient(config["common"]["slack_bot_token"]).chat_postMessage(
-        channel=config["common"]["slack_channel"], text=alert_message + slack_alert_to
-    )
+    
+    # Send telegram message if token is configured
+    telegram_token = config["common"].get("telegram_bot_token", "")
+    if telegram_token and telegram_token.strip():
+        try:
+            Bot(telegram_token).send_message(
+                config["common"]["telegram_chat_id"],
+                alert_message + telegram_alert_to,
+                reply_to_message_id=config["common"]["telegram_message_id"]
+            )
+        except Exception as e:
+            print(f"Failed to send Telegram message: {e}")
+    
+    # Send slack message if token is configured
+    slack_token = config["common"].get("slack_bot_token", "")
+    if slack_token and slack_token.strip():
+        try:
+            slack.WebClient(slack_token).chat_postMessage(
+                channel=config["common"]["slack_channel"], text=alert_message + slack_alert_to
+            )
+        except Exception as e:
+            print(f"Failed to send Slack message: {e}")
+    
+    # Always log the message
+    print(f"Alert Message: {alert_message}")
 
 
 def is_evm_address(address):
