@@ -131,7 +131,9 @@ def set_broker_user_fee(_data):
             _fee_key = f"{_futures_maker_fee_rate}:{_futures_taker_fee_rate}"
             if _fee_key not in data.keys():
                 data[_fee_key] = []
-            data[_fee_key].append(_da["account_id"])
+            
+            account_id = _da["account_id"]
+            data[_fee_key].append(account_id)
 
         # batch_size = 480 if config["common"]["orderly_network"].lower() == "mainnet" else 250
         batch_size = 250
@@ -139,13 +141,21 @@ def set_broker_user_fee(_data):
             maker_fee_rate = Decimal(_fk.split(":")[0])
             taker_fee_rate = Decimal(_fk.split(":")[1])
             account_ids = _fv
+            
+            # Set RWA fee rates (can be configured or set to default values)
+            rwa_maker_fee_rate = 0  # Default RWA maker fee rate
+            rwa_taker_fee_rate = 0.0005  # Default RWA taker fee rate (0.05%)
+            
+
 
             for i in range(0, len(account_ids), batch_size):
                 batch_ids = account_ids[i:i + batch_size]
                 _payload = {
                     "account_ids": batch_ids,
-                    "maker_fee_rate": str(maker_fee_rate),
-                    "taker_fee_rate": str(taker_fee_rate),
+                    "maker_fee_rate": float(maker_fee_rate),
+                    "taker_fee_rate": float(taker_fee_rate),
+                    "rwa_maker_fee_rate": rwa_maker_fee_rate,
+                    "rwa_taker_fee_rate": rwa_taker_fee_rate,
                 }
                 try:
                     # if (
