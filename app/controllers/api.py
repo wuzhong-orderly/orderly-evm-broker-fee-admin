@@ -140,13 +140,10 @@ def set_broker_user_fee(_data):
         for _fk, _fv in data.items():
             maker_fee_rate = Decimal(_fk.split(":")[0])
             taker_fee_rate = Decimal(_fk.split(":")[1])
+            rwa_maker_fee_rate= Decimal(_fk.split(":")[2])
+            rwa_taker_fee_rate = Decimal(_fk.split(":")[3])
             account_ids = _fv
             
-            # Set RWA fee rates (can be configured or set to default values)
-            rwa_maker_fee_rate = 0  # Default RWA maker fee rate
-            rwa_taker_fee_rate = 0.0005  # Default RWA taker fee rate (0.05%)
-            
-
 
             for i in range(0, len(account_ids), batch_size):
                 batch_ids = account_ids[i:i + batch_size]
@@ -154,8 +151,8 @@ def set_broker_user_fee(_data):
                     "account_ids": batch_ids,
                     "maker_fee_rate": float(maker_fee_rate),
                     "taker_fee_rate": float(taker_fee_rate),
-                    "rwa_maker_fee_rate": rwa_maker_fee_rate,
-                    "rwa_taker_fee_rate": rwa_taker_fee_rate,
+                    "rwa_maker_fee_rate": float(rwa_maker_fee_rate),
+                    "rwa_taker_fee_rate": float(rwa_taker_fee_rate),
                 }
                 try:
                     # if (
