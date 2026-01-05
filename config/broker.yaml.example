@@ -4,6 +4,7 @@ common:
   api_secret: ed25519:...j
   orderly_endpoint: https://api-evm.orderly.network
   orderly_network: Mainnet
+  broker_id: your_broker_id_here  # <--- add your broker id here
   statistical_days: 30
   telegram_bot_token: ''
   telegram_chat_id: ''
@@ -23,31 +24,43 @@ rate:
   fee_tier:
   - maker_fee: 0.03%
     taker_fee: 0.06%
+    rwa_maker_fee: 0.03%    # <--- add RWA fee fields for each tier
+    rwa_taker_fee: 0.06%
     tier: '1'
     volume_max: 500000
     volume_min: 0
   - maker_fee: 0.024%
     taker_fee: 0.054%
+    rwa_maker_fee: 0.024%
+    rwa_taker_fee: 0.054%
     tier: '2'
     volume_max: 2500000
     volume_min: 500000
   - maker_fee: 0.018%
     taker_fee: 0.048%
+    rwa_maker_fee: 0.018%
+    rwa_taker_fee: 0.048%
     tier: '3'
     volume_max: 10000000
     volume_min: 2500000
   - maker_fee: 0.012%
     taker_fee: 0.042%
+    rwa_maker_fee: 0.012%
+    rwa_taker_fee: 0.042%
     tier: '4'
     volume_max: 100000000
     volume_min: 10000000
   - maker_fee: 0.006%
     taker_fee: 0.036%
+    rwa_maker_fee: 0.006%
+    rwa_taker_fee: 0.036%
     tier: '5'
     volume_max: 250000000
     volume_min: 100000000
   - maker_fee: 0%
     taker_fee: 0.03%
+    rwa_maker_fee: 0%
+    rwa_taker_fee: 0.03%
     tier: '6'
     volume_max: null
     volume_min: 250000000

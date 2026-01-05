@@ -31,74 +31,58 @@ Usage examples:
 cp config/broker.yaml.example data/config/broker.yaml
 ```
 ```yaml
-
 common:
   account_id: '0x...'
   api_key: ed25519:...
   api_secret: ed25519:...j
   orderly_endpoint: https://api-evm.orderly.network
+  broker_id: your_broker_id_here   # <--- add this line for custom broker id
   statistical_days: 30
 rate:
   fee_tier:
   - maker_fee: 0.03%
     taker_fee: 0.06%
+    rwa_maker_fee: 0.03%           # <--- add RWA fee fields for each tier
+    rwa_taker_fee: 0.06%
     tier: '1'
     volume_max: 500000
     volume_min: 0
   - maker_fee: 0.024%
     taker_fee: 0.054%
+    rwa_maker_fee: 0.024%
+    rwa_taker_fee: 0.054%
     tier: '2'
     volume_max: 2500000
     volume_min: 500000
-  - maker_fee: 0.018%
-    taker_fee: 0.048%
-    tier: '3'
-    volume_max: 10000000
-    volume_min: 2500000
-  - maker_fee: 0.012%
-    taker_fee: 0.042%
-    tier: '4'
-    volume_max: 100000000
-    volume_min: 10000000
-  - maker_fee: 0.006%
-    taker_fee: 0.036%
-    tier: '5'
-    volume_max: 250000000
-    volume_min: 100000000
-  - maker_fee: 0%
-    taker_fee: 0.03%
-    tier: '6'
-    volume_max: null
-    volume_min: 250000000
+  # ... more tiers ...
   special_rate_whitelists:
   - '0x'
   startup_batch_update_fee: true
-
 ```
 
 ## Usage method
 1. Help information
-```shell 
+```shell
 python3 app/main.py
 
-    Help Information(Option,Parameters):
-    - update-broker-default-fee <maker fee> <taker fee> 
-    - update-user-special-rate <account_id> <maker fee> <taker fee> 
-    - update-user-rate
-    Description: The fee unit uses percentiles, e.g. 0.0003 = 0.03%
+  Help Information(Option,Parameters):
+  - update-broker-default-fee <maker fee> <taker fee> <RWA maker fee> <RWA taker fee>
+  - update-user-special-rate <account_id> <maker fee> <taker fee> <RWA maker fee> <RWA taker fee>
+  - update-user-rate
+  Description: The fee unit uses percentiles, e.g. 0.0003 = 0.03%
     
-    Examples: python3 app/main.py update-broker-default-fee 0.0003 0.0005
+  Examples: python3 app/main.py update-broker-default-fee 0.0003 0.0005 0.0003 0.0005
 ```
 2. Update broker default rates
 ```shell
-python3 app/main.py update-broker-default-fee 0.001 0.006
+python3 app/main.py update-broker-default-fee 0.001 0.006 0.001 0.006
 ```
 3. Update special rates for user
 ```shell
-python3 app/main.py update-user-special-rate 0x918ce3f57ce4b2a3920d4a81c772f8a26ce30c9f34792421949d23741338d3b6 0.0001 0.0003
+python3 app/main.py update-user-special-rate 0x111111111111111111111111111111111111 0.0001 0.0004 0.0001 0.0007
 ```
 4. Start the automatic update user's rates task
-```shell 
+```shell
 #Every day at 01:00
 python3 app/main.py update-user-rate
 ```
