@@ -109,7 +109,10 @@ def sign_request(http_method, url_path, payload=None):
             "User-Agent": "EVM Broker Fee Admin ",
         }
     )
-    # logger.info(f"Sign Request Headers: {session.headers}")
+
+    logger.info(f"Sign Request Headers: {session.headers}")
+    logger.info(f"Sign Request Payload: {payload}")
+    logger.info(f"Sign Request URL: {url_path}")
     return send_request(http_method, url_path, payload)
 
 
@@ -117,6 +120,7 @@ def send_request(http_method, url_path, payload=None, ignore_rest_exception=Fals
     if payload is None:
         payload = {}
     url = orderly_endpoint + url_path
+    logger.info(f"Send Request URL: {url}, Payload: {payload}")
     params = clean_none_value({"url": url, "params": payload})
     response = _dispatch_request(http_method, params)
     # logger.info(
@@ -168,10 +172,18 @@ def _handle_rest_exception(response):
         try:
             err = json.loads(response.text)
         except JSONDecodeError:
+            # Server returned a non-JSON error body; surface raw text
             raise ClientError(status_code, None, response.text, response.headers, error_data)
-        if "data" in err:
-            error_data = err["data"]
-        raise ClientError(
-            status_code, err["error"], err["message"], response.headers, error_data
+
+        error_data = err.get("data")
+        error_code = err.get("error") or err.get("code")
+        message = err.get("message") or err.get("msg") or response.text
+        logger.error(
+            "HTTP %s error while calling %s: code=%s message=%s",
+            status_code,
+            response.url,
+            error_code,
+            message,
         )
+        raise ClientError(status_code, error_code, message, response.headers, error_data)
     raise ServerError(status_code, response.text)

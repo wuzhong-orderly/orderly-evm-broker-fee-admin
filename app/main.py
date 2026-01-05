@@ -17,8 +17,8 @@ logger = setup_logging()
 def show_help():
     help_text = """
     Help Information(Option,Parameters):
-    - update-broker-default-fee <maker fee> <taker fee>
-    - update-user-special-rate <account_id> <maker fee> <taker fee>
+    - update-broker-default-fee <maker fee> <taker fee> <RWA maker fee> <RWA taker fee>
+    - update-user-special-rate <account_id> <maker fee> <taker fee> <RWA maker fee> <RWA taker fee>
     - update-user-rate
     Description: The fee unit uses percentiles, e.g. 0.0003 = 0.03%
     
@@ -31,10 +31,10 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     if len(args) == 0:
         show_help()
-    elif args[0] == "update-broker-default-fee" and len(args) == 3:
-        update_broker_default_fee(args[1], args[2])
-    elif args[0] == "update-user-special-rate" and len(args) == 4:
-        update_user_special_rate(args[1], args[2], args[3])
+    elif args[0] == "update-broker-default-fee" and len(args) == 5:
+        update_broker_default_fee(args[1], args[2],args[3], args[4])
+    elif args[0] == "update-user-special-rate" and len(args) == 6:
+        update_user_special_rate(args[1], args[2], args[3], args[4], args[5])
     elif args[0] == "get-broker-default-rate":
         fetch_broker_default_rate()
     elif args[0] == "update-user-rate":

@@ -34,15 +34,21 @@ def get_broker_default_rate():
     url = "/v1/broker/fee_rate/default"
     try:
         data = sign_request("GET", f"{url}")
+        logger.info(f"Broker Default Fee Rate: {data}")
     except Exception as e:
         data = None
         logger.error(f"Get Broker Default Fee URL Failed: {url} - {e}")
     return data
 
 
-def set_broker_default_rate(maker_fee_rate, taker_fee_rate):
+def set_broker_default_rate(maker_fee_rate, taker_fee_rate, rwa_maker_fee_rate, rwa_taker_fee_rate):
     url = "/v1/broker/fee_rate/default"
-    _payload = {"maker_fee_rate": maker_fee_rate, "taker_fee_rate": taker_fee_rate}
+    _payload = {
+        "maker_fee_rate": maker_fee_rate,
+        "taker_fee_rate": taker_fee_rate,
+        "rwa_taker_fee_rate": rwa_taker_fee_rate,
+        "rwa_maker_fee_rate": rwa_maker_fee_rate,
+    }
     try:
         _post_data = sign_request("POST", f"{url}", payload=_payload)
     except Exception as e:
@@ -60,12 +66,13 @@ def get_broker_users_volumes(count):
     #     "aggregateBy": "account",
     # }
     # _volumes = sign_request("GET", "/v1/volume/broker/daily", payload=_payload)
+    broker_id = config["common"].get("broker_id", "woofi_pro")
     _payload = {
         "start_date": start_time.split(" ")[0],
         "end_date": end_time.split(" ")[0],
         "size": "500",
         "page": count,
-        "broker_id": "woofi_pro",
+        "broker_id": broker_id,
         "aggregateBy": "address_per_builder",
     }
     _volumes = sign_request("GET", "/v1/broker/leaderboard/daily", payload=_payload)
@@ -123,15 +130,23 @@ def set_broker_user_fee(_data):
     _tier1 = config["rate"]["fee_tier"][0]
     _tier1_maker_fee = Decimal(_tier1["maker_fee"].replace("%", "")) / 100
     _tier1_taker_fee = Decimal(_tier1["taker_fee"].replace("%", "")) / 100
+    _tier1_rwa_maker_fee = Decimal(_tier1["rwa_maker_fee"].replace("%", "")) / 100
+    _tier1_rwa_taker_fee = Decimal(_tier1["rwa_taker_fee"].replace("%", "")) / 100
     _ok_count, _fail_count = 0, 0
     if _data:
         for _da in _data:
+            # Ensure RWA keys exist, default to 0 if missing
+            if "rwa_maker_fee_rate" not in _da:
+                _da["rwa_maker_fee_rate"] = 0
+            if "rwa_taker_fee_rate" not in _da:
+                _da["rwa_taker_fee_rate"] = 0
             _futures_maker_fee_rate = _da["futures_maker_fee_rate"]
             _futures_taker_fee_rate = _da["futures_taker_fee_rate"]
-            _fee_key = f"{_futures_maker_fee_rate}:{_futures_taker_fee_rate}"
+            _rwa_maker_fee_rate = _da["rwa_maker_fee_rate"]
+            _rwa_taker_fee_rate = _da["rwa_taker_fee_rate"]
+            _fee_key = f"{_futures_maker_fee_rate}:{_futures_taker_fee_rate}:{_rwa_maker_fee_rate}:{_rwa_taker_fee_rate}"
             if _fee_key not in data.keys():
                 data[_fee_key] = []
-            
             account_id = _da["account_id"]
             data[_fee_key].append(account_id)
 

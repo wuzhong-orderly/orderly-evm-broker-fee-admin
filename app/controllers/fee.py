@@ -171,20 +171,20 @@ def fetch_broker_default_rate():
     get_broker_default_rate()
 
 
-def update_broker_default_fee(maker_fee, taker_fee):
+def update_broker_default_fee(maker_fee, taker_fee, rwa_maker_fee, rwa_taker_fee):
     url = "/v1/broker/fee_rate/default"
     try:
         _data = get_broker_default_rate()
         if _data:
             logger.info(
-                f'Modifying Broker Default Fees:  Maker Fee {_data["data"]["maker_fee_rate"]} -> {maker_fee}, Taker Fee {_data["data"]["taker_fee_rate"]} -> {taker_fee}'
+                f'Modifying Broker Default Fees:  Maker Fee {_data["data"]["maker_fee_rate"]} -> {maker_fee}, Taker Fee {_data["data"]["taker_fee_rate"]} -> {taker_fee} , RWA Maker Fee {_data["data"]["rwa_maker_fee_rate"]} -> {rwa_maker_fee}, RWA Taker Fee {_data["data"]["rwa_taker_fee_rate"]} -> {rwa_taker_fee}'
             )
-        set_broker_default_rate(maker_fee, taker_fee)
+        set_broker_default_rate(maker_fee, taker_fee, rwa_taker_fee, rwa_maker_fee)
     except Exception as e:
         logger.error(f"Get Broker Default Fee URL Failed: {url} - {e}")
 
 
-def update_user_special_rate(account_id, maker_fee, taker_fee):
+def update_user_special_rate(account_id, maker_fee, taker_fee,rwa_maker_fee, rwa_taker_fee):
     _whitelists = config["rate"]["special_rate_whitelists"]
     if "special_rate_whitelists" in config["rate"] and isinstance(
         config["rate"]["special_rate_whitelists"], list
@@ -198,6 +198,8 @@ def update_user_special_rate(account_id, maker_fee, taker_fee):
             "account_id": account_id,
             "futures_maker_fee_rate": maker_fee,
             "futures_taker_fee_rate": taker_fee,
+            "rwa_maker_fee_rate": rwa_maker_fee,
+            "rwa_taker_fee_rate": rwa_taker_fee,
         }
     ]
     _ok_count, _fail_count = set_broker_user_fee(_data)
