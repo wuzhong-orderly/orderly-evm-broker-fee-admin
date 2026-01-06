@@ -373,6 +373,8 @@ def update_user_rates():
         _tier["tier"]: {
             "futures_maker_fee_rate": Decimal(_tier["maker_fee"].replace("%", "")) / 100,
             "futures_taker_fee_rate": Decimal(_tier["taker_fee"].replace("%", "")) / 100,
+            "rwa_maker_fee_rate": Decimal(_tier["rwa_maker_fee"].replace("%", "")) / 100,
+            "rwa_taker_fee_rate": Decimal(_tier["rwa_taker_fee"].replace("%", "")) / 100,
             "tier": _tier["tier"],
         }
         for _tier in config["rate"]["fee_tier"]
@@ -387,6 +389,14 @@ def update_user_rates():
         staking_bal = account_id2data.get(_account_id, {}).get("staking_bal", 0)
 
         _user_fee = get_user_fee_rates(perp_volume, staking_bal)
+        # Find the tier config for this user
+        tier_config = None
+        if _user_fee and "tier" in _user_fee:
+            for _tier in config["rate"]["fee_tier"]:
+                if str(_tier["tier"]) == str(_user_fee["tier"]):
+                    tier_config = _tier
+                    break
+
         if (hosting_campaign_fixed_tier_start_ts is not None and 
             hosting_campaign_fixed_tier_end_ts is not None and
             int(hosting_campaign_fixed_tier_start_ts) <= now < int(hosting_campaign_fixed_tier_end_ts)):
@@ -396,8 +406,13 @@ def update_user_rates():
                 or (hosting_campaign_fixed_tier_network == "svm" and is_svm_address(_address))
             ) and hosting_campaign_fixed_tier is not None and int(_user_fee["tier"]) < int(hosting_campaign_fixed_tier):
                 _user_fee = tier_fee_rates[hosting_campaign_fixed_tier]
+                # Also update tier_config for hosting campaign
+                for _tier in config["rate"]["fee_tier"]:
+                    if str(_tier["tier"]) == str(hosting_campaign_fixed_tier):
+                        tier_config = _tier
+                        break
 
-        if not _user_fee:
+        if not _user_fee or not tier_config:
             alert_message = f'WOOFi Pro {config["common"]["orderly_network"]} - get_user_fee_rates, _address: {_address}, perp_volume: {perp_volume}, staking_bal: {staking_bal}'
             send_message(alert_message)
             break
@@ -405,6 +420,8 @@ def update_user_rates():
             tier_count[_user_fee["tier"]] += 1
             _new_futures_maker_fee_rate = Decimal(_user_fee["futures_maker_fee_rate"])
             _new_futures_taker_fee_rate = Decimal(_user_fee["futures_taker_fee_rate"])
+            _new_rwa_maker_fee_rate = Decimal(str(tier_config.get("rwa_maker_fee", "0")).replace("%", "")) / 100
+            _new_rwa_taker_fee_rate = Decimal(str(tier_config.get("rwa_taker_fee", "0")).replace("%", "")) / 100
             old_user_fee = user_fee.pd.query_data(_account_id)
             if not old_user_fee.empty:
                 _old_futures_maker_fee_rate = Decimal(old_user_fee.futures_maker_fee_rate.values[0])
@@ -425,10 +442,13 @@ def update_user_rates():
                             "account_id": _account_id,
                             "futures_maker_fee_rate": maker_fee_rate,
                             "futures_taker_fee_rate": taker_fee_rate,
+                            "rwa_maker_fee_rate": _new_rwa_maker_fee_rate,
+                            "rwa_taker_fee_rate": _new_rwa_taker_fee_rate,
                             "address": _address,
                         }
                         data.append(_ret)
-                        user_fee.create_update_user_fee_data(_ret)
+                        
+                        # user_fee.create_update_user_fee_data(_ret)
                 except:
                     print(
                         f"New rates are not smaller than old rates: {_account_id}"
@@ -438,11 +458,14 @@ def update_user_rates():
                     "account_id": _account_id,
                     "futures_maker_fee_rate": _new_futures_maker_fee_rate,
                     "futures_taker_fee_rate": _new_futures_taker_fee_rate,
+                    "rwa_maker_fee_rate": _new_rwa_maker_fee_rate,
+                    "rwa_taker_fee_rate": _new_rwa_taker_fee_rate,
                     "address": _address,
                 }
                 data.append(_ret)
-                user_fee.create_update_user_fee_data(_ret)
+                # user_fee.create_update_user_fee_data(_ret)
 
+    
     # address2fee_rate = {
     #     _data["address"]: {
     #         "futures_maker_fee_rate": str(_data["futures_maker_fee_rate"]),
@@ -451,6 +474,9 @@ def update_user_rates():
     #     for _data in data
     # }
     # verify_broker_fees_data(address2fee_rate, update_user_rates.__name__)
+
+    # Output all data before sending to set_broker_user_fee
+    
 
     ok_count, fail_count = set_broker_user_fee(data)
     total_ok_count += ok_count

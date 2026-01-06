@@ -80,12 +80,20 @@ def get_broker_users_volumes(count):
 
 
 def get_user_fee_rates(volume, staking_bal):
+    logger.info("Calculating user fee rates...")
+    logger.info("Calculating user fee rates...")
+    logger.info("Calculating user fee rates...")
+    logger.info("Calculating user fee rates...")
+    logger.info("Calculating user fee rates...")
+    logger.info("Calculating user fee rates...")
     _tiers = config["rate"]["fee_tier"]
     tier_found = -1
     user_fee_rates = {}
     for _tier in _tiers:
         maker_fee_rate = Decimal(_tier["maker_fee"].replace("%", "")) / 100
         taker_fee_rate = Decimal(_tier["taker_fee"].replace("%", "")) / 100
+        rwa_maker_fee_rate = Decimal(str(_tier.get("rwa_maker_fee", "0")).replace("%", "")) / 100
+        rwa_taker_fee_rate = Decimal(str(_tier.get("rwa_taker_fee", "0")).replace("%", "")) / 100
         if _tier["volume_min"] <= volume and (
             _tier["volume_max"] is None or volume < _tier["volume_max"]
         ):
@@ -94,6 +102,8 @@ def get_user_fee_rates(volume, staking_bal):
                 user_fee_rates = {
                     "futures_maker_fee_rate": maker_fee_rate,
                     "futures_taker_fee_rate": taker_fee_rate,
+                    "rwa_maker_fee_rate": rwa_maker_fee_rate,
+                    "rwa_taker_fee_rate": rwa_taker_fee_rate,
                     "tier": _tier["tier"],
                 }
 
@@ -107,6 +117,8 @@ def get_user_fee_rates(volume, staking_bal):
                     user_fee_rates = {
                         "futures_maker_fee_rate": maker_fee_rate,
                         "futures_taker_fee_rate": taker_fee_rate,
+                        "rwa_maker_fee_rate": rwa_maker_fee_rate,
+                        "rwa_taker_fee_rate": rwa_taker_fee_rate,
                         "tier": _tier["tier"],
                     }
 
@@ -114,6 +126,14 @@ def get_user_fee_rates(volume, staking_bal):
         logger.info(f"get user fee rates failed, volume: {volume}, staking_bal: {staking_bal}")
         return None
 
+    logger.info(f"get user fee rates success, volume: {volume}, staking_bal: {staking_bal}, rates: {user_fee_rates}")   
+    logger.info(f"get user fee rates success, volume: {volume}, staking_bal: {staking_bal}, rates: {user_fee_rates}")   
+    logger.info(f"get user fee rates success, volume: {volume}, staking_bal: {staking_bal}, rates: {user_fee_rates}")   
+    logger.info(f"get user fee rates success, volume: {volume}, staking_bal: {staking_bal}, rates: {user_fee_rates}")   
+    logger.info(f"get user fee rates success, volume: {volume}, staking_bal: {staking_bal}, rates: {user_fee_rates}")   
+    logger.info(f"get user fee rates success, volume: {volume}, staking_bal: {staking_bal}, rates: {user_fee_rates}")   
+    logger.info(f"get user fee rates success, volume: {volume}, staking_bal: {staking_bal}, rates: {user_fee_rates}")   
+    logger.info(f"get user fee rates success, volume: {volume}, staking_bal: {staking_bal}, rates: {user_fee_rates}")   
     return user_fee_rates
 
 
@@ -135,16 +155,21 @@ def set_broker_user_fee(_data):
     _ok_count, _fail_count = 0, 0
     if _data:
         for _da in _data:
-            # Ensure RWA keys exist, default to 0 if missing
-            if "rwa_maker_fee_rate" not in _da:
-                _da["rwa_maker_fee_rate"] = 0
-            if "rwa_taker_fee_rate" not in _da:
-                _da["rwa_taker_fee_rate"] = 0
+            # Always get RWA fee rates from config for the user's tier
+            tier = _da.get("tier")
+            rwa_maker_fee_rate = 0
+            rwa_taker_fee_rate = 0
+            if tier is not None:
+                for _tier in config["rate"]["fee_tier"]:
+                    if str(_tier["tier"]) == str(tier):
+                        rwa_maker_fee_rate = Decimal(str(_tier.get("rwa_maker_fee", "0")).replace("%", "")) / 100
+                        rwa_taker_fee_rate = Decimal(str(_tier.get("rwa_taker_fee", "0")).replace("%", "")) / 100
+                        break
+            rwa_maker_fee_rate = _da["rwa_maker_fee_rate"]
+            rwa_taker_fee_rate = _da["rwa_taker_fee_rate"]
             _futures_maker_fee_rate = _da["futures_maker_fee_rate"]
             _futures_taker_fee_rate = _da["futures_taker_fee_rate"]
-            _rwa_maker_fee_rate = _da["rwa_maker_fee_rate"]
-            _rwa_taker_fee_rate = _da["rwa_taker_fee_rate"]
-            _fee_key = f"{_futures_maker_fee_rate}:{_futures_taker_fee_rate}:{_rwa_maker_fee_rate}:{_rwa_taker_fee_rate}"
+            _fee_key = f"{_futures_maker_fee_rate}:{_futures_taker_fee_rate}:{rwa_maker_fee_rate}:{rwa_taker_fee_rate}"
             if _fee_key not in data.keys():
                 data[_fee_key] = []
             account_id = _da["account_id"]
@@ -194,5 +219,6 @@ def set_broker_user_fee(_data):
                 time.sleep(2)
     logger.info(
         f"Set Broker User's Status - success: {_ok_count}, failed: {_fail_count}"
+        f", tier1: {_tier1}"
     )
     return _ok_count, _fail_count
