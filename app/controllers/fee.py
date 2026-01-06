@@ -426,17 +426,20 @@ def update_user_rates():
             if not old_user_fee.empty:
                 _old_futures_maker_fee_rate = Decimal(old_user_fee.futures_maker_fee_rate.values[0])
                 _old_futures_taker_fee_rate = Decimal(old_user_fee.futures_taker_fee_rate.values[0])
+                # Try to get old RWA rates if present, else default to -1 to force update if missing
+                _old_rwa_maker_fee_rate = Decimal(str(getattr(old_user_fee, 'rwa_maker_fee_rate', [-1])[0])) if hasattr(old_user_fee, 'rwa_maker_fee_rate') else Decimal(-1)
+                _old_rwa_taker_fee_rate = Decimal(str(getattr(old_user_fee, 'rwa_taker_fee_rate', [-1])[0])) if hasattr(old_user_fee, 'rwa_taker_fee_rate') else Decimal(-1)
                 try:
                     if (
-                        _new_futures_maker_fee_rate
-                        != _old_futures_maker_fee_rate
-                        or _new_futures_taker_fee_rate
-                        != _old_futures_taker_fee_rate
+                        _new_futures_maker_fee_rate != _old_futures_maker_fee_rate
+                        or _new_futures_taker_fee_rate != _old_futures_taker_fee_rate
+                        or _new_rwa_maker_fee_rate != _old_rwa_maker_fee_rate
+                        or _new_rwa_taker_fee_rate != _old_rwa_taker_fee_rate
                     ):
                         maker_fee_rate = _new_futures_maker_fee_rate
                         taker_fee_rate = _new_futures_taker_fee_rate
                         logger.info(
-                            f"{_account_id} - New Maker Fee Rate: {maker_fee_rate}, Smaller Taker Fee Rate: {taker_fee_rate}"
+                            f"{_account_id} - New Maker Fee Rate: {maker_fee_rate}, Taker Fee Rate: {taker_fee_rate}, RWA Maker Fee Rate: {_new_rwa_maker_fee_rate}, RWA Taker Fee Rate: {_new_rwa_taker_fee_rate}"
                         )
                         _ret = {
                             "account_id": _account_id,
@@ -447,12 +450,8 @@ def update_user_rates():
                             "address": _address,
                         }
                         data.append(_ret)
-                        
-                        # user_fee.create_update_user_fee_data(_ret)
-                except:
-                    print(
-                        f"New rates are not smaller than old rates: {_account_id}"
-                    )
+                except Exception as e:
+                    logger.error(f"Error comparing old/new fee rates for account {_account_id}: {e}")
             else:
                 _ret = {
                     "account_id": _account_id,

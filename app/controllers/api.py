@@ -155,68 +155,55 @@ def set_broker_user_fee(_data):
     _ok_count, _fail_count = 0, 0
     if _data:
         for _da in _data:
-            # Always get RWA fee rates from config for the user's tier
-            tier = _da.get("tier")
-            rwa_maker_fee_rate = 0
-            rwa_taker_fee_rate = 0
-            if tier is not None:
-                for _tier in config["rate"]["fee_tier"]:
-                    if str(_tier["tier"]) == str(tier):
-                        rwa_maker_fee_rate = Decimal(str(_tier.get("rwa_maker_fee", "0")).replace("%", "")) / 100
-                        rwa_taker_fee_rate = Decimal(str(_tier.get("rwa_taker_fee", "0")).replace("%", "")) / 100
-                        break
-            rwa_maker_fee_rate = _da["rwa_maker_fee_rate"]
-            rwa_taker_fee_rate = _da["rwa_taker_fee_rate"]
-            _futures_maker_fee_rate = _da["futures_maker_fee_rate"]
-            _futures_taker_fee_rate = _da["futures_taker_fee_rate"]
-            _fee_key = f"{_futures_maker_fee_rate}:{_futures_taker_fee_rate}:{rwa_maker_fee_rate}:{rwa_taker_fee_rate}"
-            if _fee_key not in data.keys():
-                data[_fee_key] = []
-            account_id = _da["account_id"]
-            data[_fee_key].append(account_id)
+            try:
+                rwa_maker_fee_rate = _da["rwa_maker_fee_rate"]
+                rwa_taker_fee_rate = _da["rwa_taker_fee_rate"]
+                _futures_maker_fee_rate = _da["futures_maker_fee_rate"]
+                _futures_taker_fee_rate = _da["futures_taker_fee_rate"]
+                _fee_key = f"{_futures_maker_fee_rate}:{_futures_taker_fee_rate}:{rwa_maker_fee_rate}:{rwa_taker_fee_rate}"
+                if _fee_key not in data.keys():
+                    data[_fee_key] = []
+                account_id = _da["account_id"]
+                data[_fee_key].append(account_id)
+            except Exception as e:
+                logger.error(f"Error processing user fee data: {_da}, error: {e}")
 
         # batch_size = 480 if config["common"]["orderly_network"].lower() == "mainnet" else 250
         batch_size = 250
         for _fk, _fv in data.items():
-            maker_fee_rate = Decimal(_fk.split(":")[0])
-            taker_fee_rate = Decimal(_fk.split(":")[1])
-            rwa_maker_fee_rate= Decimal(_fk.split(":")[2])
-            rwa_taker_fee_rate = Decimal(_fk.split(":")[3])
-            account_ids = _fv
-            
+            try:
+                maker_fee_rate = Decimal(_fk.split(":")[0])
+                taker_fee_rate = Decimal(_fk.split(":")[1])
+                rwa_maker_fee_rate= Decimal(_fk.split(":")[2])
+                rwa_taker_fee_rate = Decimal(_fk.split(":")[3])
+                account_ids = _fv
 
-            for i in range(0, len(account_ids), batch_size):
-                batch_ids = account_ids[i:i + batch_size]
-                _payload = {
-                    "account_ids": batch_ids,
-                    "maker_fee_rate": float(maker_fee_rate),
-                    "taker_fee_rate": float(taker_fee_rate),
-                    "rwa_maker_fee_rate": float(rwa_maker_fee_rate),
-                    "rwa_taker_fee_rate": float(rwa_taker_fee_rate),
-                }
-                try:
-                    # if (
-                    #     maker_fee_rate == _tier1_maker_fee
-                    #     or taker_fee_rate == _tier1_taker_fee
-                    # ):
-                    #     _reset_fee = reset_user_fee_default(batch_ids)
-                    #     if not _reset_fee["success"]:
-                    #         logger.error(
-                    #             f"Failed to reset user rates account_ ids - {batch_ids}"
-                    #         )
-                    _update_fee = sign_request(
-                        "POST", "/v1/broker/fee_rate/set", payload=_payload
-                    )
-                    if _update_fee["success"] == True:
-                        _ok_count += len(batch_ids)
-                    else:
+                for i in range(0, len(account_ids), batch_size):
+                    batch_ids = account_ids[i:i + batch_size]
+                    _payload = {
+                        "account_ids": batch_ids,
+                        "maker_fee_rate": float(maker_fee_rate),
+                        "taker_fee_rate": float(taker_fee_rate),
+                        "rwa_maker_fee_rate": float(rwa_maker_fee_rate),
+                        "rwa_taker_fee_rate": float(rwa_taker_fee_rate),
+                    }
+                    try:
+                        _update_fee = sign_request(
+                            "POST", "/v1/broker/fee_rate/set", payload=_payload
+                        )
+                        if _update_fee.get("success") == True:
+                            _ok_count += len(batch_ids)
+                        else:
+                            _fail_count += len(batch_ids)
+                            logger.error(f"Fee update failed for accounts: {batch_ids}, payload: {_payload}, response: {_update_fee}")
+                    except Exception as e:
                         _fail_count += len(batch_ids)
-                except Exception as e:
-                    _fail_count += len(batch_ids)
-                    logger.error(
-                        f"Set Broker User's Fee Failed: {_fk} - {_payload} - {str(e)} "
-                    )
-                time.sleep(2)
+                        logger.error(
+                            f"Set Broker User's Fee Exception: {_fk} - {_payload} - {str(e)} "
+                        )
+                    time.sleep(2)
+            except Exception as e:
+                logger.error(f"Error in fee update batch: key={_fk}, error: {e}")
     logger.info(
         f"Set Broker User's Status - success: {_ok_count}, failed: {_fail_count}"
         f", tier1: {_tier1}"
